@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_SEATS 3
+#define MAX_WAITING 10
+
+struct Passenger {
+    char name[50];
+    struct Passenger* next;
+};
+struct Passenger* head = NULL;
+int seatsFilled = 0;
+
+char waitingQueue[MAX_WAITING][50];
+int front = -1, rear = -1, waitingCount = 0;
+
+int alreadyBooked(char name[]) {
+    for (struct Passenger* t = head; t != NULL; t = t->next)
+        if (strcmp(t->name, name) == 0) return 1;
+    for (int i = 0, j = front; i < waitingCount; i++, j = (j + 1) % MAX_WAITING)
+        if (strcmp(waitingQueue[j], name) == 0) return 1;
+    return 0;
+}
+
+void addToWaiting(char name[]) {
+    if (waitingCount == MAX_WAITING) { printf("Waiting list is full!\n"); return; }
+    if (front == -1) front = 0;
+    rear = (rear + 1) % MAX_WAITING;
+    strcpy(waitingQueue[rear], name);
+    waitingCount++;
+}
+
+void removeFromWaiting(char name[]) {
+    if (waitingCount == 0) { strcpy(name, ""); return; }
+    strcpy(name, waitingQueue[front]);
+    front = (front + 1) % MAX_WAITING;
+    if (--waitingCount == 0) front = rear = -1;
+}
+
+void addPassenger(char name[]) {
+    struct Passenger* p = (struct Passenger*)malloc(sizeof(struct Passenger));
+    strcpy(p->name, name);
+    p->next = head;
+    head = p;
+    seatsFilled++;
+}
+
+void bookTicket() {
+    char name[50];
+    printf("Enter passenger name: "); scanf(" %[^\n]", name);
+    if (alreadyBooked(name)) { printf("\'%s\' is already booked!\n", name); return; }
+    if (seatsFilled < MAX_SEATS) {
+        addPassenger(name);
+        printf("Ticket booked for %s! (Seat %d/%d)\n", name, seatsFilled, MAX_SEATS);
+    } else {
+        addToWaiting(name);
+        printf("Seats full. %s added to waiting list (Position %d).\n", name, waitingCount);
+    }
+}
+
+void cancelTicket() {
+    char name[50];
+    printf("Enter passenger name to cancel: "); scanf(" %[^\n]", name);
+    struct Passenger *temp = head, *prev = NULL;
+    while (temp != NULL && strcmp(temp->name, name) != 0) { prev = temp; temp = temp->next; }
+    if (temp == NULL) { printf("Passenger \'%s\' not found.\n", name); return; }
+    if (prev == NULL) head = temp->next; else prev->next = temp->next;
+    free(temp); seatsFilled--;
+    printf("Ticket cancelled for %s.\n", name);
+    char next[50];
+    removeFromWaiting(next);
+    if (strcmp(next, "") != 0) {
+        addPassenger(next);
+        printf("%s moved from waiting list to confirmed!\n", next);
+    }
+}
+
+void showPassengers() {
+    if (head == NULL) { printf("No confirmed passengers.\n"); return; }
+    printf("\n--- Confirmed Passengers (%d/%d) ---\n", seatsFilled, MAX_SEATS);
+    int i = 1;
+    for (struct Passenger* t = head; t != NULL; t = t->next)
+        printf("  %d. %s\n", i++, t->name);
+}
+
+void showWaiting() {
+    if (waitingCount == 0) { printf("Waiting list is empty.\n"); return; }
+    printf("\n--- Waiting List (%d waiting) ---\n", waitingCount);
+    for (int i = 0, j = front; i < waitingCount; i++, j = (j + 1) % MAX_WAITING)
+        printf("  %d. %s\n", i + 1, waitingQueue[j]);
+}
+
+void freeMemory() {
+    struct Passenger* temp = head;
+    while (temp != NULL) { struct Passenger* next = temp->next; free(temp); temp = next; }
+}
+
+int main() {
+    int choice;
+    printf("=== Train Reservation System ===\n");
+    while (1) {
+        printf("\n1. Book Ticket\n2. Cancel Ticket\n3. Show Passengers\n4. Show Waiting List\n5. Exit\nEnter choice: ");
+        scanf("%d", &choice);
+        switch (choice) {
+            case 1: bookTicket();    break;
+            case 2: cancelTicket();  break;
+            case 3: showPassengers(); break;
+            case 4: showWaiting();   break;
+            case 5: freeMemory(); printf("Goodbye!\n"); return 0;
+            default: printf("Invalid choice!\n");
+        }
+    }
+}
+
